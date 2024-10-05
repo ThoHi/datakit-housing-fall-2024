@@ -1,0 +1,79 @@
+// Load the US Census Bureau's TIGER/Line shapefiles
+var states = ee.FeatureCollection('TIGER/2018/States');
+
+// Filter for Florida
+var florida = states.filter(ee.Filter.eq('NAME', 'Florida'));
+
+// Load the DEM dataset
+var dem = ee.Image('USGS/SRTMGL1_003');
+
+// Define the initial water level rise in meters
+var waterLevelRise = 1.0;
+
+// Create a water mask where the DEM is less than the water level rise
+var waterMask = dem.lt(waterLevelRise).clip(florida);
+
+// Define visualization parameters with 50% opacity
+var visParams = {
+  min: 0,
+  max: 1,
+  palette: ['ff0000'],
+  opacity: 0.5
+};
+
+// Center the map on the location
+Map.centerObject(florida, 7);
+
+// Add the water mask layer to the map
+Map.addLayer(waterMask.selfMask(), visParams, 'Water Level Rise: ' + waterLevelRise + 'm');
+
+// Function to update the water level rise and opacity
+function updateMap(waterLevelRise, opacity) {
+  var waterMask = dem.lt(waterLevelRise).clip(florida);
+                
+  var updatedVisParams = {
+    min: 0,
+    max: 1,
+    palette: ['ff0000'],
+    opacity: opacity
+  };
+  Map.layers().reset();
+  Map.addLayer(waterMask.selfMask(), updatedVisParams, 'Water Level Rise: ' + waterLevelRise + 'm');
+}
+
+// Create a slider widget for water level rise
+var waterLevelSlider = ui.Slider({
+  min: 0,
+  max: 10,
+  value: 1.0,
+  step: 0.1,
+  onChange: function(value) {
+    updateMap(value, opacitySlider.getValue());
+  },
+  style: {width: '200px'}
+});
+
+// Create a slider widget for opacity
+var opacitySlider = ui.Slider({
+  min: 0,
+  max: 1,
+  value: 0.5,
+  step: 0.01,
+  onChange: function(value) {
+    updateMap(waterLevelSlider.getValue(), value);
+  },
+  style: {width: '200px'}
+});
+
+// Add the sliders to the map
+var panel = ui.Panel({
+  widgets: [
+    ui.Label('Water Level (m):'),
+    waterLevelSlider,
+    ui.Label('Opacity:'),
+    opacitySlider
+  ],
+  style: {position: 'top-left'}
+});
+
+Map.add(panel);
